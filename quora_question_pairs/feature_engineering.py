@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 from scipy.spatial.distance import cosine, cityblock, jaccard, canberra, euclidean, minkowski, braycurtis
 from scipy.stats import skew, kurtosis
@@ -9,6 +10,10 @@ from nltk import word_tokenize
 from tqdm import tqdm
 import sys, traceback
 import pickle
+
+#TODO
+from gensim.models import Word2Vec
+from gensim.test.utils import common_texts, get_tmpfile
 
 def wmd(model, s1, s2):
     s1 = str(s1).lower().split()
@@ -39,17 +44,30 @@ def sent2vec(model, s):
     return v / np.sqrt((v ** 2).sum())
 
 def run():
+    w2v_path = "data/word2vec.model"
+    w2v_dim = 300
+
     try:
         print("Reading csv")
         train = pd.read_csv('data/train.csv')
         train = train.drop(['id', 'qid1', 'qid2'], axis=1)
+
+        #TODO
+        train = train[:10000]
         
 
-        model = gensim.models.KeyedVectors.load_word2vec_format('data/w2v_googlenews/GoogleNews-vectors-negative300.bin.gz', binary=True)
-        train['wmd'] = train.apply(lambda x: wmd(model, x['question1'], x['question2']), axis=1) # Word movers distance
+        # model = gensim.models.KeyedVectors.load_word2vec_format('data/w2v_googlenews/GoogleNews-vectors-negative300.bin.gz', binary=True)
+        if os.path.exists(w2v_path):
+            model = get_tmpfile(w2v_path)
+        else:
+            model = Word2Vec(common_texts, size=w2v_dim, window=5, min_count=1, workers=4)
+            model.save("data/word2vec.model")
 
-        question1_vectors = np.zeros((train.shape[0], 300))
-        question2_vectors = np.zeros((train.shape[0], 300))
+        # Failing due to pyemd
+        # train['wmd'] = train.apply(lambda x: wmd(model, x['question1'], x['question2']), axis=1) # Word movers distance
+
+        question1_vectors = np.zeros((train.shape[0], 100))
+        question2_vectors = np.zeros((train.shape[0], 100))
 
         print("Generating question vectors")
         for i, q in tqdm(enumerate(train.question1.values)):
@@ -57,7 +75,6 @@ def run():
 
         for i, q in tqdm(enumerate(train.question2.values)):
             question2_vectors[i, :] = sent2vec(model, q)
-        
 
         # Simple features
         print("Calculating simple features")
