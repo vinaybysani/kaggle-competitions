@@ -1,0 +1,7 @@
+numpy
+gensim
+sklearn
+pandas
+fuzzywuzzy
+jupyterlab
+xgboost
